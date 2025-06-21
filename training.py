@@ -1,10 +1,7 @@
 from datasets import Dataset
 import pandas as pd
 import torch
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-)
+from transformers import AutoTokenizer, AutoModelForCausalLM
 from transformers.data.data_collator import DataCollatorForSeq2Seq
 from transformers.training_args import TrainingArguments
 from transformers.trainer import Trainer
@@ -44,14 +41,20 @@ def process_func(example, tokenizer):
 
 
 def main():
-    model = AutoModelForCausalLM.from_pretrained("./model", torch_dtype=torch.bfloat16)
+    model = AutoModelForCausalLM.from_pretrained(
+        "./model/Qwen3-8B",
+        torch_dtype=torch.bfloat16,
+    )
     model.enable_input_require_grads()
 
     df = pd.read_json("./dataset/train.json")
     ds = Dataset.from_pandas(df)
     tokenizer = AutoTokenizer.from_pretrained(
-        "./model", use_fast=False, trust_remote_code=True
+        "./model/Qwen3-8B",
+        use_fast=False,
+        trust_remote_code=True,
     )
+
     tokenized_id = ds.map(
         functools.partial(process_func, tokenizer=tokenizer),
         remove_columns=ds.column_names,
@@ -97,7 +100,7 @@ def main():
         data_collator=DataCollatorForSeq2Seq(tokenizer=tokenizer, padding=True),
     )
 
-    trainer.train()
+    trainer.train(resume_from_checkpoint=True)
 
 
 if __name__ == "__main__":
