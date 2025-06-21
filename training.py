@@ -9,14 +9,12 @@ from transformers.data.data_collator import DataCollatorForSeq2Seq
 from transformers.training_args import TrainingArguments
 from transformers.trainer import Trainer
 from peft import LoraConfig, TaskType, get_peft_model
+import functools
 
 
-def process_func(example):
+def process_func(example, tokenizer):
     MAX_LENGTH = 1024
     input_ids, attention_mask, labels = [], [], []
-    tokenizer = AutoTokenizer.from_pretrained(
-        "./model", use_fast=False, trust_remote_code=True
-    )
     instruction = tokenizer(
         f"<s><|im_start|>system\n你是一个内容审查专家，请你分析我的句子并且从中提取出一个或者多个四元组。请从下面的文本抽取一个或多个四元组，每一个四元组输出格式为评论对象|对象观点|是否仇恨|仇恨群体。评论对象可以为'NULL',对象观点尽量简洁,仇恨群体只包括(LGBTQ、Region、Sexism、Racism、others、non-hate)，同一四元组可能涉及多个仇恨群体，是否仇恨标签为(hate、non-hate),多个四元组之间用[SEP]分隔,最后一个四元组后面加[END]。提取出句子中包含的所有四元组:<|im_end|>\n"
         f"<|im_start|>user\n{example['content']}<|im_end|>\n"
@@ -54,7 +52,10 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(
         "./model", use_fast=False, trust_remote_code=True
     )
-    tokenized_id = ds.map(process_func, remove_columns=ds.column_names)
+    tokenized_id = ds.map(
+        functools.partial(process_func, tokenizer=tokenizer),
+        remove_columns=ds.column_names,
+    )
 
     config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
